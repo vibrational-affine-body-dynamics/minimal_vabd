@@ -1,0 +1,15 @@
+{
+  "approved": true,
+  "center_rmse": 0.008928724564611912,
+  "center_rmse_over_bbox": 0.0036828068550676107,
+  "center_p95": 0.01848260685801506,
+  "radius_rmse": 0.0016220780089497566,
+  "radius_rmse_relative": 0.047731827944517136,
+  "radius_p95": 0.003471391275525093,
+  "jacobian_relative_mean": 0.00015023563696558995,
+  "jacobian_relative_max": 0.0002896100631915033,
+  "normalized_validation_mse": 0.5387308597564697,
+  "train_samples": 1500,
+  "validation_samples": 500,
+  "seed": 7
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+!sqem.cp310-win_amd64.pyd
+*.tar
+.polyscope.ini
+imgui.ini
+output/
+plot/
+data/K0_*.npy
+data/M_tilde_*.npy
+.vscode/
+ext/

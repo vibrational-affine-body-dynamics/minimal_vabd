@@ -1,0 +1,100 @@
+import warp as wp 
+import numpy as np
+from fem.params import mu
+kappa = mu * 0.25
+@wp.func
+def hessian(F: wp.mat33):
+    H = wp.matrix(
+        shape = (12, 12), dtype = float
+    )
+    FT = wp.transpose(F)
+    for i in range(3):
+        for j in range(3):
+            h = wp.mat33(0.0)
+            qi = FT[i]
+            qj = FT[j]
+
+            if i == j:
+                h = 2.0 * wp.outer(qi, qi) + wp.diag(wp.vec3(1.0, 1.0, 1.0) * (wp.dot(qi, qi) - 1.0))
+                for k in range(3):
+                    if k!= i:
+                        qk = FT[k]
+                        h += wp.outer(qk, qk)
+            else: 
+                h = wp.diag(wp.vec3(1.0, 1.0, 1.0)) * wp.dot(qj, qi) + wp.outer(qj, qi)
+            
+            h *= 4.0 * kappa
+            for ii in range(3):
+                for jj in range(3):
+                    H[3 * i + ii, 3 * j + jj] = h[ii, jj]
+    return H
+
+@wp.func
+def gradient(F: wp.mat33):
+    ret = wp.vector(length = 12, dtype = float)
+    FT = wp.transpose(F)
+    for i in range(3):
+        g = wp.vec3(0.0)
+        for j in range(3):
+            qi = FT[i]
+            qj = FT[j]
+            g += (wp.dot(qi, qj) - wp.where(i == j, 1.0, 0.0)) * qj
+        g *= 4.0 * kappa
+        for ii in range(3):
+            ret[i * 3 + ii] = g[ii]
+
+    return ret
+            
+@wp.kernel(enable_backward=False)
+def test_hessian():
+    F = wp.diag(wp.vec3(1.0, 1.0, 0.99))
+    H = hessian(F)
+    print(H)
+
+@wp.kernel(enable_backward= False)
+def fill_gh(g: wp.array2d(dtype = float), H: wp.array3d(dtype = float), F: wp.array(dtype = wp.mat33)):
+    i = wp.tid()
+    gg = gradient(F[i])
+    hh = hessian(F[i])
+    
+    for ii in range(9):
+        g[i, ii] = gg[ii]
+        for jj in range(9):
+            H[i, ii, jj] = hh[ii, jj]
+        
+
+class OrthogonalEnergy:
+    def __init__(self, n_meshes = 1):
+        self.g = wp.zeros((n_meshes, 12), float)
+        self.h = wp.zeros((n_meshes, 12, 12), float)
+        self.F = wp.zeros((n_meshes, ), dtype = wp.mat33)
+        self.n_meshes = n_meshes
+
+    def analyze(self, ff):
+        self.g.zero_()
+        self.h.zero_()
+        g = self.g
+        h = self.h
+
+
+        self.F.assign(ff.reshape((-1, 3, 3)))
+        wp.launch(fill_gh, (self.n_meshes), inputs = [g, h, self.F])
+        gg = g.numpy()
+        hh = h.numpy()
+        return gg, hh
+    
+    def energy(self, F):
+        df = F.T @ F - np.identity(3)
+        return np.sum(df * df) * kappa
+    
+    def energy_batch(self, F):
+        FT = np.transpose(F, (0, 2, 1))
+        FTF = FT @ F - np.identity(3)
+        return np.sum(FTF * FTF, axis = (1,2)) * kappa
+        
+    
+if __name__ == "__main__":
+    wp.config.max_unroll = 0
+    wp.init()
+    wp.launch(test_hessian, (1), )
+            
