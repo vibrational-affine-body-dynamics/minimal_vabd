@@ -9,4 +9,4 @@ plot/
 data/K0_*.npy
 data/M_tilde_*.npy
 .vscode/
-ext/
+# ext/
